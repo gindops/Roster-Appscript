@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; font-family: 'Google Sans', Roboto, Arial, sans-serif; }
+    body { margin: 0; padding: 12px; background: #f8f9fa; font-size: 13px; color: #202124; }
+    h3 { margin: 0 0 10px; font-size: 15px; color: #1a73e8; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+    .tab { flex: 1; padding: 8px 4px; text-align: center; background: #e8eaed; border: none;
+           border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; }
+    .tab.active { background: #1a73e8; color: #fff; }
+    .card { background: #fff; border: 1px solid #dadce0; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    label { display: block; margin: 8px 0 3px; font-weight: 500; font-size: 12px; }
+    input, select { width: 100%; padding: 7px 8px; border: 1px solid #dadce0; border-radius: 6px; font-size: 13px; }
+    input:focus, select:focus { outline: 2px solid #1a73e8; border-color: transparent; }
+    .baris2 { display: flex; gap: 8px; }
+    .baris2 > div { flex: 1; }
+    .cek-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-top: 4px; }
+    .cek-item { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+    .cek-item input { width: auto; }
+    button.simpan { width: 100%; margin-top: 12px; padding: 9px; background: #1a73e8; color: #fff;
+                    border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    button.simpan:disabled { background: #9aa0a6; cursor: wait; }
+    .pesan { margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 12px; display: none; }
+    .pesan.ok { display: block; background: #e6f4ea; color: #137333; }
+    .pesan.err { display: block; background: #fce8e6; color: #c5221f; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { text-align: left; padding: 5px 4px; border-bottom: 2px solid #dadce0; color: #5f6368; }
+    td { padding: 5px 4px; border-bottom: 1px solid #f1f3f4; }
+    .badge { padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .gold { background: #fef7e0; color: #b06000; }
+    .silver { background: #f1f3f4; color: #5f6368; }
+    .nonaktif { opacity: .45; }
+    .toggle { color: #1a73e8; cursor: pointer; font-size: 11px; text-decoration: underline; }
+    .hitung { color: #5f6368; font-size: 11px; margin: 4px 0 6px; }
+    .hint { color: #5f6368; font-size: 11px; font-weight: 400; }
+  </style>
+</head>
+<body>
+  <h3>📋 Input Master Data</h3>
+
+  <div class="tabs">
+    <button class="tab active" data-jenis="perawat" onclick="gantiTab(this)">💉 Perawat</button>
+    <button class="tab" data-jenis="receptionist" onclick="gantiTab(this)">🛎️ Receptionist</button>
+  </div>
+  <p class="hint" style="margin:0 0 10px">Data dokter diisi lewat menu 2️⃣ (Generate / Import Jadwal Dokter), bukan di form ini.</p>
+
+  <div class="card">
+    <div id="form-fields"></div>
+    <button class="simpan" id="btnSimpan" onclick="simpan()">💾 Simpan</button>
+    <div class="pesan" id="pesan"></div>
+  </div>
+
+  <div class="card">
+    <div class="hitung" id="hitung"></div>
+    <div id="daftar"></div>
+  </div>
+
+<script>
+  let jenisAktif = 'perawat';
+  // Fallback 8 spesialisasi — dipakai bila pembacaan sheet gagal (mis. PERMISSION_DENIED),
+  // agar checklist kapabilitas SELALU tampil.
+  const SPES_DEFAULT = [
+    { kode: 'GP', nama: 'General Practice' },
+    { kode: 'Sp.KG', nama: 'Konservasi Gigi' },
+    { kode: 'Sp.KGA', nama: 'Kedokteran Gigi Anak' },
+    { kode: 'Sp.BM', nama: 'Bedah Mulut' },
+    { kode: 'Sp.Perio', nama: 'Periodonsia' },
+    { kode: 'Sp.Ortho', nama: 'Ortodonti' },
+    { kode: 'Sp.Prostho', nama: 'Prostodonsia' },
+    { kode: 'Sp.PM', nama: 'Penyakit Mulut' }
+  ];
+  let spesialisasiList = SPES_DEFAULT.slice();
+  let jamShiftOpts = ['09:00-15:00', '15:00-21:00'];
+
+  const HARI = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+
+  const FORM = {
+    dokter: [
+      { id: 'nama', label: 'Nama Dokter *', tipe: 'text', ph: 'drg. ...' },
+      { id: 'spesialisasi', label: 'Spesialisasi *', tipe: 'select-spes' },
+      { id: 'kebutuhanAsisten', label: 'Kebutuhan Asisten *', tipe: 'select', opsi: ['1','2','3','4','5'] },
+      { id: 'hariPraktek', label: 'Hari Praktek *', tipe: 'select', opsi: HARI },
+      { id: 'jamAwal', label: 'Jam Awal Praktek *', tipe: 'text', ph: '10.00', duo: 'a' },
+      { id: 'jamAkhir', label: 'Akhir Jam Praktek *', tipe: 'text', ph: '14.00', duo: 'b' },
+      { id: 'jamShift', label: 'Jam Shift *', tipe: 'select-jam' },
+      { id: 'kategoriShift', label: 'Kategori Shift *', tipe: 'select', opsi: ['Shift Pagi','Shift Siang'] }
+    ],
+    perawat: [
+      { id: 'nama', label: 'Nama Perawat *', tipe: 'text', ph: 'Nama lengkap' },
+      { id: 'level', label: 'Level Grading *', tipe: 'select', opsi: ['Gold','Silver'] },
+      { id: 'kategori', label: 'Kategori *', tipe: 'select', opsi: ['Existing','New'] },
+      { id: 'kapabilitas', label: 'Kapabilitas Asistensi Spesialis', tipe: 'cek-spes', optional: true }
+    ],
+    receptionist: [
+      { id: 'nama', label: 'Nama Receptionist *', tipe: 'text', ph: 'Nama lengkap' },
+      { id: 'level', label: 'Level Grading *', tipe: 'select', opsi: ['Gold','Silver'] }
+    ]
+  };
+
+  function gantiTab(btn) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    jenisAktif = btn.dataset.jenis;
+    renderForm();
+    muatDaftar();
+  }
+
+  function renderForm() {
+    const wrap = document.getElementById('form-fields');
+    wrap.innerHTML = '';
+    let duoWrap = null;
+    FORM[jenisAktif].forEach(f => {
+      let parent = wrap;
+      // Pasangkan jam awal & akhir berdampingan
+      if (f.duo === 'a') {
+        duoWrap = document.createElement('div');
+        duoWrap.className = 'baris2';
+        wrap.appendChild(duoWrap);
+        parent = document.createElement('div'); duoWrap.appendChild(parent);
+      } else if (f.duo === 'b' && duoWrap) {
+        parent = document.createElement('div'); duoWrap.appendChild(parent);
+      }
+
+      const lbl = document.createElement('label');
+      lbl.innerHTML = f.label + (f.optional ? ' <span class="hint">(centang yang mampu)</span>' : '');
+      parent.appendChild(lbl);
+
+      if (f.tipe === 'text') {
+        const inp = document.createElement('input');
+        inp.id = 'f_' + f.id; inp.placeholder = f.ph || '';
+        parent.appendChild(inp);
+      } else if (f.tipe === 'cek-spes') {
+        const grid = document.createElement('div');
+        grid.className = 'cek-grid'; grid.id = 'f_' + f.id;
+        spesialisasiList.forEach(s => {
+          const item = document.createElement('label');
+          item.className = 'cek-item';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox'; cb.value = s.kode; cb.className = 'cb-kapab';
+          item.appendChild(cb);
+          item.appendChild(document.createTextNode(s.kode));
+          grid.appendChild(item);
+        });
+        parent.appendChild(grid);
+      } else {
+        const sel = document.createElement('select');
+        sel.id = 'f_' + f.id;
+        sel.appendChild(new Option('— pilih —', ''));
+        if (f.tipe === 'select-spes') {
+          spesialisasiList.forEach(s => sel.appendChild(new Option(s.kode + ' — ' + s.nama, s.kode)));
+        } else if (f.tipe === 'select-jam') {
+          jamShiftOpts.forEach(j => sel.appendChild(new Option(j, j)));
+        } else {
+          f.opsi.forEach(o => sel.appendChild(new Option(o, o)));
+        }
+        parent.appendChild(sel);
+      }
+    });
+    tampilPesan('', '');
+  }
+
+  function simpan() {
+    const data = {};
+    let kosong = false;
+    FORM[jenisAktif].forEach(f => {
+      if (f.tipe === 'cek-spes') {
+        const dipilih = Array.from(document.querySelectorAll('#f_' + f.id + ' .cb-kapab:checked'))
+          .map(cb => cb.value);
+        data[f.id] = dipilih.join(', ');
+      } else {
+        const v = document.getElementById('f_' + f.id).value.trim();
+        data[f.id] = v;
+        if (!v && !f.optional) kosong = true;
+      }
+    });
+    if (kosong) { tampilPesan('Semua field bertanda * wajib diisi.', 'err'); return; }
+
+    const btn = document.getElementById('btnSimpan');
+    btn.disabled = true; btn.textContent = 'Menyimpan…';
+    google.script.run
+      .withSuccessHandler(res => {
+        btn.disabled = false; btn.textContent = '💾 Simpan';
+        tampilPesan(res.pesan, res.ok ? 'ok' : 'err');
+        if (res.ok) { renderForm(); muatDaftar(); }
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false; btn.textContent = '💾 Simpan';
+        tampilPesan('Error: ' + err.message, 'err');
+      })
+      .addMasterData(jenisAktif, data);
+  }
+
+  function muatDaftar() {
+    document.getElementById('daftar').innerHTML = '<em>Memuat…</em>';
+    google.script.run
+      .withSuccessHandler(renderDaftar)
+      .withFailureHandler(err => {
+        document.getElementById('daftar').innerHTML = '<em>Gagal memuat: ' + err.message + '</em>';
+      })
+      .getMasterData(jenisAktif);
+  }
+
+  function renderDaftar(rows) {
+    const aktif = rows.filter(r => r.aktif !== 'Tidak').length;
+    document.getElementById('hitung').textContent =
+      'Total: ' + rows.length + ' baris (' + aktif + ' aktif)';
+    if (!rows.length) {
+      document.getElementById('daftar').innerHTML = '<em>Belum ada data.</em>';
+      return;
+    }
+    let html = '<table><tr><th>ID</th><th>Nama</th><th>Info</th><th></th></tr>';
+    rows.forEach(r => {
+      const off = r.aktif === 'Tidak';
+      let info = '';
+      if (jenisAktif === 'dokter') {
+        info = r.spesialisasi + ' · ' + (r.hariPraktek || '?') + ' ' +
+               (r.kategoriShift ? r.kategoriShift.replace('Shift ', '') : '') +
+               ' · ' + r.kebutuhanAsisten + ' asisten';
+      } else if (jenisAktif === 'perawat') {
+        const nKapab = r.kapabilitas ? r.kapabilitas.split(',').filter(x => x.trim()).length : 0;
+        info = '<span class="badge ' + r.level.toLowerCase() + '">' + r.level + '</span> ' +
+               r.kategori + ' · ' + nKapab + ' spesialis';
+      } else {
+        info = '<span class="badge ' + r.level.toLowerCase() + '">' + r.level + '</span>';
+      }
+      html += '<tr class="' + (off ? 'nonaktif' : '') + '"><td>' + r.id + '</td><td>' +
+        esc(r.nama) + '</td><td>' + info + '</td><td><span class="toggle" onclick="toggleAktif(\'' +
+        r.id + '\',\'' + (off ? 'Ya' : 'Tidak') + '\')">' + (off ? 'aktifkan' : 'nonaktifkan') +
+        '</span></td></tr>';
+    });
+    document.getElementById('daftar').innerHTML = html + '</table>';
+  }
+
+  function toggleAktif(id, status) {
+    google.script.run
+      .withSuccessHandler(res => { tampilPesan(res.pesan, res.ok ? 'ok' : 'err'); muatDaftar(); })
+      .withFailureHandler(err => tampilPesan('Error: ' + err.message, 'err'))
+      .setStatusAktif(jenisAktif, id, status);
+  }
+
+  function tampilPesan(txt, cls) {
+    const p = document.getElementById('pesan');
+    p.textContent = txt;
+    p.className = 'pesan' + (cls ? ' ' + cls : '');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // Inisialisasi: langsung render dari fallback (checklist selalu tampil),
+  // lalu perbarui dari sheet bila berhasil dibaca.
+  renderForm();
+  muatDaftar();
+  google.script.run
+    .withSuccessHandler(list => {
+      if (list && list.length) { spesialisasiList = list; renderForm(); }
+    })
+    .withFailureHandler(() => { /* tetap pakai SPES_DEFAULT */ })
+    .getSpesialisasiList();
+  google.script.run
+    .withSuccessHandler(jam => { if (jam && jam.length) jamShiftOpts = jam; })
+    .withFailureHandler(() => {})
+    .getJamShiftOptions();
+</script>
+</body>
+</html>

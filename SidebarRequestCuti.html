@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; font-family: 'Google Sans', Roboto, Arial, sans-serif; }
+    body { margin: 0; padding: 12px; background: #f8f9fa; font-size: 13px; color: #202124; }
+    h3 { margin: 0 0 4px; font-size: 15px; color: #1a73e8; }
+    .sub { color: #5f6368; font-size: 11px; margin: 0 0 12px; }
+    .card { background: #fff; border: 1px solid #dadce0; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    label { display: block; margin: 8px 0 3px; font-weight: 500; font-size: 12px; }
+    input, select { width: 100%; padding: 7px 8px; border: 1px solid #dadce0; border-radius: 6px; font-size: 13px; }
+    input:focus, select:focus { outline: 2px solid #1a73e8; border-color: transparent; }
+    .baris2 { display: flex; gap: 8px; }
+    .baris2 > div { flex: 1; }
+    .peran { display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 10px;
+             font-size: 11px; font-weight: 600; background: #e8f0fe; color: #1a73e8; }
+    button.simpan { width: 100%; margin-top: 12px; padding: 9px; background: #1a73e8; color: #fff;
+                    border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    button.simpan:disabled { background: #9aa0a6; cursor: wait; }
+    .pesan { margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 12px; display: none; }
+    .pesan.ok { display: block; background: #e6f4ea; color: #137333; }
+    .pesan.err { display: block; background: #fce8e6; color: #c5221f; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { text-align: left; padding: 5px 4px; border-bottom: 2px solid #dadce0; color: #5f6368; }
+    td { padding: 5px 4px; border-bottom: 1px solid #f1f3f4; vertical-align: top; }
+    .hapus { color: #c5221f; cursor: pointer; font-size: 11px; text-decoration: underline; }
+    .hitung { color: #5f6368; font-size: 11px; margin: 4px 0 6px; }
+    .tag { font-size: 10px; color: #5f6368; }
+  </style>
+</head>
+<body>
+  <h3>📝 Request Cuti / Libur</h3>
+  <p class="sub">Isi sebelum generate jadwal. Dokter cuti → tidak dijadwalkan; perawat/receptionist cuti → otomatis libur.</p>
+
+  <div class="card">
+    <label>Nama Staf *</label>
+    <select id="f_nama" onchange="pilihNama()"><option value="">— memuat… —</option></select>
+    <span class="peran" id="peranBadge" style="display:none"></span>
+
+    <div class="baris2">
+      <div><label>Tanggal Mulai *</label><input type="date" id="f_mulai"></div>
+      <div><label>Tanggal Akhir</label><input type="date" id="f_akhir"></div>
+    </div>
+    <span class="tag">Tanggal Akhir opsional — kosongkan untuk cuti 1 hari.</span>
+
+    <label>Keterangan</label>
+    <input type="text" id="f_ket" placeholder="Cuti tahunan / Sakit / Izin">
+
+    <button class="simpan" id="btnSimpan" onclick="simpan()">💾 Tambah Request</button>
+    <div class="pesan" id="pesan"></div>
+  </div>
+
+  <div class="card">
+    <div class="hitung" id="hitung">Request tersimpan</div>
+    <div id="daftar"><em>Memuat…</em></div>
+  </div>
+
+<script>
+  let stafList = [];
+
+  function isiDropdown() {
+    const sel = document.getElementById('f_nama');
+    sel.innerHTML = '<option value="">— pilih staf —</option>';
+    stafList.forEach((s, i) => {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = s.nama + '  (' + s.peran + ')';
+      sel.appendChild(o);
+    });
+  }
+
+  function pilihNama() {
+    const i = document.getElementById('f_nama').value;
+    const badge = document.getElementById('peranBadge');
+    if (i === '') { badge.style.display = 'none'; return; }
+    badge.textContent = stafList[i].peran;
+    badge.style.display = 'inline-block';
+  }
+
+  function simpan() {
+    const i = document.getElementById('f_nama').value;
+    const mulai = document.getElementById('f_mulai').value;
+    if (i === '') { tampil('Pilih nama staf dulu.', 'err'); return; }
+    if (!mulai) { tampil('Tanggal mulai wajib diisi.', 'err'); return; }
+    const data = {
+      nama: stafList[i].nama, peran: stafList[i].peran,
+      mulai: mulai, akhir: document.getElementById('f_akhir').value,
+      keterangan: document.getElementById('f_ket').value.trim()
+    };
+    const btn = document.getElementById('btnSimpan');
+    btn.disabled = true; btn.textContent = 'Menyimpan…';
+    google.script.run
+      .withSuccessHandler(res => {
+        btn.disabled = false; btn.textContent = '💾 Tambah Request';
+        tampil(res.pesan, res.ok ? 'ok' : 'err');
+        if (res.ok) {
+          document.getElementById('f_akhir').value = '';
+          document.getElementById('f_ket').value = '';
+          muatDaftar();
+        }
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false; btn.textContent = '💾 Tambah Request';
+        tampil('Error: ' + err.message, 'err');
+      })
+      .addRequestCuti(data);
+  }
+
+  function muatDaftar() {
+    google.script.run
+      .withSuccessHandler(render)
+      .withFailureHandler(err => {
+        document.getElementById('daftar').innerHTML = '<em>Gagal memuat: ' + err.message + '</em>';
+      })
+      .getRequestCutiList();
+  }
+
+  function render(rows) {
+    document.getElementById('hitung').textContent = rows.length + ' request tersimpan';
+    if (!rows.length) { document.getElementById('daftar').innerHTML = '<em>Belum ada request.</em>'; return; }
+    let html = '<table><tr><th>Nama</th><th>Tanggal</th><th></th></tr>';
+    rows.forEach(r => {
+      const tgl = r.akhir ? (r.mulai + ' – ' + r.akhir) : r.mulai;
+      html += '<tr><td>' + esc(r.nama) + '<br><span class="tag">' + esc(r.peran) +
+        (r.keterangan ? ' · ' + esc(r.keterangan) : '') + '</span></td><td>' + tgl +
+        '</td><td><span class="hapus" onclick="hapus(' + r.baris + ')">hapus</span></td></tr>';
+    });
+    document.getElementById('daftar').innerHTML = html + '</table>';
+  }
+
+  function hapus(baris) {
+    google.script.run
+      .withSuccessHandler(res => { tampil(res.pesan, res.ok ? 'ok' : 'err'); muatDaftar(); })
+      .withFailureHandler(err => tampil('Error: ' + err.message, 'err'))
+      .deleteRequestCuti(baris);
+  }
+
+  function tampil(txt, cls) {
+    const p = document.getElementById('pesan');
+    p.textContent = txt; p.className = 'pesan ' + cls;
+  }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // Inisialisasi
+  google.script.run
+    .withSuccessHandler(list => { stafList = list || []; isiDropdown(); })
+    .withFailureHandler(() => {
+      document.getElementById('f_nama').innerHTML = '<option value="">— gagal memuat staf —</option>';
+    })
+    .getStafListForRequest();
+  muatDaftar();
+</script>
+</body>
+</html>
