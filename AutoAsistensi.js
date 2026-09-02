@@ -141,8 +141,13 @@ function susunAsistensi_(input) {
 
     if (!kandidat.length) return; // slot dibiarkan kosong, dilaporkan
 
-    // Preferensi dokter untuk slot ini
-    const prefs = prefMap[slot.dokter.toLowerCase()] || [];
+    // Preferensi dokter untuk slot ini.
+    // Bertanggal menang atas "Selalu": bila ada preferensi bertanggal yang cocok
+    // dengan slot.tanggal, preferensi "Selalu" dokter itu diabaikan untuk hari ini.
+    const semuaPref = prefMap[slot.dokter.toLowerCase()] || [];
+    const prefs = (typeof prefBerlakuUntuk_ === 'function')
+      ? prefBerlakuUntuk_(semuaPref, slot.tanggal)
+      : semuaPref;
     const wajib = prefs.filter(function (pr) { return pr.prioritas === 'Wajib'; });
     const utamakan = prefs.filter(function (pr) { return pr.prioritas === 'Utamakan'; });
     let pool = kandidat;

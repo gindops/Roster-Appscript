@@ -91,7 +91,7 @@ const HEADER = {
   JADWAL_DOKTER: ['Tanggal', 'Hari', 'Shift', 'ID Dokter', 'Nama Dokter', 'Spesialisasi', 'Kebutuhan Asisten'],
   REQUEST_CUTI: ['Nama', 'Peran', 'Tanggal Mulai', 'Tanggal Akhir (opsional)', 'Keterangan', 'Catatan Aturan'],
   REQUEST_JAGA: ['Nama', 'Peran', 'Tanggal Mulai', 'Tanggal Akhir (opsional)', 'Keterangan', 'Shift', 'Catatan Aturan'],
-  PREFERENSI_DOKTER: ['ID Dokter', 'Nama Dokter', 'Tipe', 'Nilai', 'Prioritas', 'Keterangan'],
+  PREFERENSI_DOKTER: ['ID Dokter', 'Nama Dokter', 'Tipe', 'Nilai', 'Prioritas', 'Keterangan', 'Berlaku', 'Tanggal'],
   CONFIG_MODUL: ['Modul', 'Label', 'Admin', 'SPV', 'Viewer'],
   DASHBOARD: ['(Dashboard akan diisi otomatis oleh script pada Fase 5)']
 };
@@ -308,7 +308,9 @@ function setupTemplate() {
     pref.getRange(1, 1, 1, HEADER.PREFERENSI_DOKTER.length).setValues([HEADER.PREFERENSI_DOKTER]);
     formatHeader_(pref, HEADER.PREFERENSI_DOKTER.length);
     pref.setColumnWidth(2, 200); pref.setColumnWidth(4, 160); pref.setColumnWidth(6, 220);
+    pref.setColumnWidth(7, 110); pref.setColumnWidth(8, 260);
   }
+  if (typeof migrasiPreferensiBerlaku_ === 'function') migrasiPreferensiBerlaku_(ss);
   pasangValidasiPreferensi_(ss);
 
   // --- 6. Sheet operasional ---

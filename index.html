@@ -109,6 +109,39 @@
     .weekrow.warn { @apply ring-1 ring-red-300 dark:ring-red-500/40; }
     .weekrow.disabled { @apply opacity-50 cursor-default hover:border-slate-200 dark:hover:border-slate-800; }
     .weekrow .wd { @apply text-[13px] font-medium; }
+    /* ---- Mingguan: 7 kolom bergaya Harian (ringkas) + scroll horizontal ---- */
+    .wkwrap { @apply overflow-x-auto pb-1; }
+    .wkgrid { @apply grid gap-2; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); }
+    .wk-col { @apply rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden bg-white dark:bg-slate-900; }
+    .wk-col.warn { @apply ring-1 ring-red-300 dark:ring-red-500/40; }
+    .wk-col.blk { @apply ring-2 ring-red-500 border-red-500; }
+    .wk-col.staf-off { opacity: .55; background-image: repeating-linear-gradient(45deg, rgba(100,116,139,.12) 0 6px, transparent 6px 12px); }
+    .wk-col.disabled { @apply bg-slate-50 dark:bg-slate-800/40 border-dashed; }
+    .wk-head { @apply sticky top-0 z-10 flex items-center justify-between gap-1 px-2 py-1.5 text-[12px] font-semibold bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 cursor-pointer transition hover:text-brand; }
+    .wk-col.disabled .wk-head { @apply cursor-default text-slate-400 font-medium hover:text-slate-400; }
+    .wk-body { @apply p-2 overflow-y-auto; max-height: 68vh; }
+    .wk-empty { @apply p-3 text-[11px] text-slate-400; }
+    /* skala ringkas untuk isi kolom mingguan */
+    .wk-body .det-sec { @apply mt-2 pt-2; }
+    .wk-body .det-title { @apply text-[11px] mb-0.5; }
+    .wk-body .det-title svg { @apply w-3.5 h-3.5; }
+    .wk-body .docrow { @apply flex-col items-stretch gap-1 py-1.5 px-0; }
+    .wk-body .docname { @apply text-[12px] whitespace-normal; }
+    .wk-body .docspes { @apply text-[10px]; }
+    .wk-body .chips { @apply justify-start gap-1; max-width: 100%; }
+    .wk-body .pchip { @apply px-1.5 py-1 text-[11px]; }
+    .wk-body .pchip.pchip-card { min-width: 100%; }
+    .wk-body .pchip-sub { @apply text-[9px]; }
+    .wk-body .staffline { @apply text-[11px]; }
+    .wk-body .warnbox { @apply text-[11px] px-2 py-1.5 mb-1.5; }
+    .wk-body .blktag { @apply text-[10px]; }
+    @media print {
+      .wkwrap { overflow: visible !important; }
+      .wkgrid { grid-auto-flow: row !important; grid-auto-columns: auto !important; }
+      .wk-body { max-height: none !important; overflow: visible !important; }
+      .wk-col { break-inside: avoid; }
+      .wk-head { position: static !important; }
+    }
     .navbtn { @apply w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:text-brand hover:border-brand transition; }
     .det-sec { @apply mt-3 pt-3 border-t border-slate-100 dark:border-slate-800; }
     .det-sec:first-of-type { @apply mt-1 pt-0 border-0; }
@@ -805,24 +838,9 @@
     });
     return html + '</div></div>';
   }
-  function weekView() {
-    const blk = blkDates();
-    const cur = parseTgl(KAL_CURSOR); const mon = new Date(cur); mon.setDate(cur.getDate()-((cur.getDay()+6)%7));
-    let html = '<div class="card"><div class="flex items-center justify-between mb-2"><button class="navbtn" onclick="moveWeek(-1)">◀</button><span class="font-semibold text-[13px]">Minggu '+fmtTgl(mon)+'</span><button class="navbtn" onclick="moveWeek(1)">▶</button></div>';
-    const hn = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
-    for (let i=0;i<7;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); const t=fmtTgl(d); const day=KAL.map[t];
-      if (!day){ html+='<div class="weekrow disabled"><div class="wd">'+hn[i]+' '+d.getDate()+'</div><div class="muted">di luar periode</div></div>'; continue; }
-      const iss=dayIssues(day);
-      html+='<div class="weekrow'+(iss.total?' warn':'')+(blk.has(t)?' blk':'')+(KAL_STAF&&stafOff(day,KAL_STAF)?' staf-off':'')+'" onclick="openHari(\''+t+'\')"><div class="wd" style="display:flex;align-items:center;justify-content:space-between;gap:6px"><span>'+day.hari+', '+esc(t)+((blk.has(t)||iss.total)?' <span class="cellwarn">!</span>':'')+'</span>'+sugBtn(t)+'</div>'+(KAL_STAF?statsHtmlStaf(day,KAL_STAF):statsHtml(day))+'</div>';
-    }
-    return html + '</div>';
-  }
-  function dayView() {
-    const day = KAL.map[KAL_CURSOR]; if (!day) return '<div class="card">-</div>';
-    const bisaEdit = CTX.peran==='Admin' || CTX.peran==='SPV';
-    let html = '<div class="card"><div class="flex items-center justify-between mb-1"><button class="navbtn" onclick="moveDay(-1)">◀</button><span class="font-semibold text-[14px]">'+esc(day.hari)+', '+esc(KAL_CURSOR)+'</span><button class="navbtn" onclick="moveDay(1)">▶</button></div>';
-    html += '<div class="seg2"><button class="'+(KAL_SHIFT==='Pagi'?'on':'')+'" onclick="switchShift(\'Pagi\')">☀️ Pagi'+shiftBlkMark(day.tanggal,'Pagi')+'</button><button class="'+(KAL_SHIFT==='Siang'?'on':'')+'" onclick="switchShift(\'Siang\')">🌤️ Siang'+shiftBlkMark(day.tanggal,'Siang')+'</button></div>';
-    html += '<div style="font-size:11px;color:#94a3b8;display:flex;flex-wrap:wrap;gap:5px 12px;align-items:center;margin:8px 2px 2px;padding-bottom:7px;border-bottom:1px solid var(--border,#eee)">' +
+  // Legenda ikon staf — dipakai tampilan Harian, Mingguan & drawer.
+  function legendaIkon() {
+    return '<div style="font-size:11px;color:#94a3b8;display:flex;flex-wrap:wrap;gap:5px 12px;align-items:center;margin:8px 2px 2px;padding-bottom:7px;border-bottom:1px solid var(--border,#eee)">' +
       '<span style="display:inline-flex;align-items:center;gap:3px">'+levelIc('Gold')+'Gold</span>' +
       '<span style="display:inline-flex;align-items:center;gap:3px">'+levelIc('Silver')+'Silver</span>' +
       '<span style="display:inline-flex;align-items:center;gap:3px">'+katIc('New')+'New</span>' +
@@ -830,6 +848,38 @@
       '<span style="display:inline-flex;align-items:center;gap:3px">'+lsBadge()+'longshift</span>' +
       '<span style="width:100%;font-weight:600;margin-top:2px">angka di kanan nama = total asistensi · longshift⇅ · libur</span>' +
     '</div>';
+  }
+  // Tampilan Mingguan: 7 kolom, tiap kolom = tampilan Harian versi ringkas.
+  // Shift mengikuti tab Pagi/Siang (satu tab untuk seluruh minggu, sama seperti Harian).
+  function weekView() {
+    const blk = blkDates();
+    const bisaEdit = CTX.peran==='Admin' || CTX.peran==='SPV';
+    const cur = parseTgl(KAL_CURSOR); const mon = new Date(cur); mon.setDate(cur.getDate()-((cur.getDay()+6)%7));
+    const hn = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+    let html = '<div class="card"><div class="flex items-center justify-between mb-2"><button class="navbtn" onclick="moveWeek(-1)">◀</button><span class="font-semibold text-[13px]">Minggu '+fmtTgl(mon)+'</span><button class="navbtn" onclick="moveWeek(1)">▶</button></div>';
+    html += '<div class="seg2"><button class="'+(KAL_SHIFT==='Pagi'?'on':'')+'" onclick="switchShift(\'Pagi\')">☀️ Pagi</button>'+
+      '<button class="'+(KAL_SHIFT==='Siang'?'on':'')+'" onclick="switchShift(\'Siang\')">🌤️ Siang</button></div>';
+    html += legendaIkon();
+    html += '<div class="wkwrap"><div class="wkgrid">';
+    for (let i=0;i<7;i++){
+      const d=new Date(mon); d.setDate(mon.getDate()+i); const t=fmtTgl(d); const day=KAL.map[t];
+      if (!day){
+        html += '<div class="wk-col disabled"><div class="wk-head"><span>'+hn[i]+' '+d.getDate()+'</span></div><div class="wk-empty">di luar periode</div></div>';
+        continue;
+      }
+      const iss=dayIssues(day);
+      html += '<div class="wk-col'+(iss.total?' warn':'')+(blk.has(t)?' blk':'')+(KAL_STAF&&stafOff(day,KAL_STAF)?' staf-off':'')+'">'+
+        '<div class="wk-head" title="Klik untuk buka detail hari" onclick="openHari(\''+t+'\')"><span>'+hn[i]+', '+esc(t)+shiftBlkMark(t,KAL_SHIFT)+((blk.has(t)||iss.total)?' <span class="cellwarn">!</span>':'')+'</span>'+sugBtn(t)+'</div>'+
+        '<div class="wk-body">'+(KAL_STAF?statsHtmlStaf(day,KAL_STAF):'')+buildShiftSections(day, KAL_SHIFT, bisaEdit)+'</div></div>';
+    }
+    return html + '</div></div></div>';
+  }
+  function dayView() {
+    const day = KAL.map[KAL_CURSOR]; if (!day) return '<div class="card">-</div>';
+    const bisaEdit = CTX.peran==='Admin' || CTX.peran==='SPV';
+    let html = '<div class="card"><div class="flex items-center justify-between mb-1"><button class="navbtn" onclick="moveDay(-1)">◀</button><span class="font-semibold text-[14px]">'+esc(day.hari)+', '+esc(KAL_CURSOR)+'</span><button class="navbtn" onclick="moveDay(1)">▶</button></div>';
+    html += '<div class="seg2"><button class="'+(KAL_SHIFT==='Pagi'?'on':'')+'" onclick="switchShift(\'Pagi\')">☀️ Pagi'+shiftBlkMark(day.tanggal,'Pagi')+'</button><button class="'+(KAL_SHIFT==='Siang'?'on':'')+'" onclick="switchShift(\'Siang\')">🌤️ Siang'+shiftBlkMark(day.tanggal,'Siang')+'</button></div>';
+    html += legendaIkon();
     html += buildShiftSections(day, KAL_SHIFT, bisaEdit);
     return html + '</div>';
   }
@@ -898,14 +948,7 @@
     const bisaEdit = CTX.peran === 'Admin' || CTX.peran === 'SPV';
     let html = '<div class="drawer-head"><h3 style="margin:0">'+esc(day.hari)+', '+esc(KAL_DAY)+'</h3><button class="themebtn" onclick="tutupDrawer()">✕</button></div>';
     html += '<div class="seg2"><button class="'+(KAL_SHIFT==='Pagi'?'on':'')+'" onclick="switchShift(\'Pagi\')">☀️ Pagi'+shiftBlkMark(day.tanggal,'Pagi')+'</button><button class="'+(KAL_SHIFT==='Siang'?'on':'')+'" onclick="switchShift(\'Siang\')">🌤️ Siang'+shiftBlkMark(day.tanggal,'Siang')+'</button></div>';
-    html += '<div style="font-size:11px;color:#94a3b8;display:flex;flex-wrap:wrap;gap:5px 12px;align-items:center;margin:8px 2px 2px;padding-bottom:7px;border-bottom:1px solid var(--border,#eee)">' +
-      '<span style="display:inline-flex;align-items:center;gap:3px">'+levelIc('Gold')+'Gold</span>' +
-      '<span style="display:inline-flex;align-items:center;gap:3px">'+levelIc('Silver')+'Silver</span>' +
-      '<span style="display:inline-flex;align-items:center;gap:3px">'+katIc('New')+'New</span>' +
-      '<span style="display:inline-flex;align-items:center;gap:3px">'+katIc('Existing')+'Existing</span>' +
-      '<span style="display:inline-flex;align-items:center;gap:3px">'+lsBadge()+'longshift</span>' +
-      '<span style="width:100%;font-weight:600;margin-top:2px">angka di kanan nama = total asistensi · longshift⇅ · libur</span>' +
-    '</div>';
+    html += legendaIkon();
     html += buildShiftSections(day, KAL_SHIFT, bisaEdit);
     document.getElementById('drawer').innerHTML = html;
   }
@@ -978,7 +1021,7 @@
     // Libur (day-level) — dapat diedit Admin/SPV — di paling bawah
     html += '<div class="det-sec"><div class="det-title" style="display:flex;align-items:center;gap:8px">'+icSm('lib')+' Libur (seharian)'+
       (bisaEdit ? '<button class="pchip empty" style="font-size:11px;padding:2px 8px" onclick="showTambahLibur('+jarg(day.tanggal)+')">+ Tambah</button>' : '')+'</div>';
-    if (bisaEdit) html += '<div id="liburPick" style="display:none"></div>';
+    if (bisaEdit) html += '<div id="'+pickLiburId(day.tanggal)+'" style="display:none"></div>';
     if (day.libur.length) {
       const staf = (KAL && KAL.staf) || {};
       const grup = { Perawat: [], Resepsionis: [], Lainnya: [] };
@@ -998,9 +1041,12 @@
 
   // ---- Editor libur in-app (Admin/SPV) ----
   function jarg(v){ return JSON.stringify(v).replace(/"/g, '&quot;'); }
+  // ID kotak picker libur per tanggal — di tampilan Mingguan ada 7 kotak sekaligus,
+  // jadi id harus unik (dulu semuanya bernama "liburPick" → getElementById salah sasaran).
+  function pickLiburId(tgl){ return 'liburPick_' + String(tgl).replace(/\D/g, ''); }
   function reloadHari(){ muatKalender(() => { if (document.getElementById('drawerBg').classList.contains('show')) renderDrawer(); }); }
   function showTambahLibur(tgl) {
-    const box = document.getElementById('liburPick'); if (!box) return;
+    const box = document.getElementById(pickLiburId(tgl)); if (!box) return;
     if (box.style.display !== 'none') { box.style.display = 'none'; return; } // toggle
     const day = KAL.map[tgl] || { libur: [] };
     const onLeave = {}; (day.libur || []).forEach(n => onLeave[String(n).toLowerCase()] = 1);
@@ -1011,7 +1057,7 @@
     // Header (dengan ✕) di LUAR area scroll agar selalu terlihat
     let h = '<div style="border:1px solid var(--border,#e5e7eb);border-radius:8px;margin:4px 0;overflow:hidden">';
     h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border,#eee)"><span class="muted" style="font-size:11px">Pilih staf untuk diberi libur ' + esc(tgl) + ':</span>' +
-      '<span onclick="event.stopPropagation();hideLiburPick()" title="Tutup" style="cursor:pointer;color:#94a3b8;font-weight:700;font-size:15px;line-height:1;padding:0 4px;flex:none">✕</span></div>';
+      '<span onclick="event.stopPropagation();hideLiburPick(' + jarg(tgl) + ')" title="Tutup" style="cursor:pointer;color:#94a3b8;font-weight:700;font-size:15px;line-height:1;padding:0 4px;flex:none">✕</span></div>';
     h += '<div style="max-height:180px;overflow:auto">'; // hanya daftar yang scroll
     if (!cand.length) h += '<div class="muted" style="padding:6px 10px">Tak ada kandidat (semua sudah libur).</div>';
     cand.forEach((s, i) => { h += '<div class="staffline" onclick="tambahLibur(' + jarg(tgl) + ',' + jarg(s.nama) + ')" style="padding:6px 10px;cursor:pointer;' + (i ? 'border-top:1px solid var(--border,#eee)' : '') + '">' +
@@ -1020,7 +1066,7 @@
     h += '</div></div>';
     box.innerHTML = h; box.style.display = '';
   }
-  function hideLiburPick(){ const b = document.getElementById('liburPick'); if (b) { b.style.display = 'none'; b.innerHTML = ''; } }
+  function hideLiburPick(tgl){ const b = document.getElementById(pickLiburId(tgl)); if (b) { b.style.display = 'none'; b.innerHTML = ''; } }
   function tambahLibur(tgl, nama) {
     overlay(true, 'Menambah libur…');
     google.script.run.withSuccessHandler(res => {
@@ -1366,10 +1412,13 @@
   let prefRows = [];
   let pEditBaris = null;
   let pTipe = 'Nama';
+  let pBerlaku = 'Selalu';   // 'Selalu' | 'Tanggal'
+  let pTglList = [];         // daftar 'dd/MM/yyyy' saat Berlaku = Tanggal
+  let pSembunyiLewat = false;
   function viewPref(m) {
     m.innerHTML =
       '<div class="card"><h2>Preferensi Dokter — Perawat Pendamping</h2>' +
-      '<div class="muted" style="margin-bottom:8px">Tersimpan permanen & otomatis dipakai saat 🤖 Auto-Generate Asistensi. <b>Wajib</b> = keras (slot bisa kosong bila mustahil, jadi blocker). <b>Utamakan</b> = diprioritaskan kuat, tak pernah mengosongkan slot.</div>' +
+      '<div class="muted" style="margin-bottom:8px">Tersimpan permanen & otomatis dipakai saat 🤖 Auto-Generate Asistensi. <b>Wajib</b> = keras (slot bisa kosong bila mustahil, jadi blocker). <b>Utamakan</b> = diprioritaskan kuat, tak pernah mengosongkan slot.<br><b>Berlaku</b> = setiap kali dokter praktik, atau tanggal tertentu saja. Pada tanggal yang punya preferensi khusus, preferensi "setiap praktik" milik dokter itu diabaikan.</div>' +
       '<button class="act" id="pBtnTambah" onclick="showPrefTambah()" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:0">' + IC_PLUS + 'Tambah Preferensi Baru</button>' +
       '<div id="pFormWrap" style="display:none"><div id="pForm"></div></div>' +
       '<div class="pesan" id="pPesan"></div></div>' +
@@ -1415,6 +1464,32 @@
     renderPrefNilaiList();
   }
   function onTipeChange(v) { pTipe = v; refreshPrefNilai(false); }
+  // ---- Cakupan waktu preferensi (Selalu / Tanggal tertentu) ----
+  function isoKeTgl(iso) { const m = String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? m[3]+'/'+m[2]+'/'+m[1] : ''; }
+  function tglKunci(t) { const m = String(t||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m ? m[3]+m[2]+m[1] : String(t); }
+  function onBerlakuChange(v) {
+    pBerlaku = (v === 'Tanggal') ? 'Tanggal' : 'Selalu';
+    const w = document.getElementById('pTglWrap'); if (w) w.style.display = (pBerlaku === 'Tanggal') ? '' : 'none';
+    renderTglChips();
+  }
+  function pTglAdd() {
+    const el = document.getElementById('pTglInput'); if (!el || !el.value) return;
+    const t = isoKeTgl(el.value);
+    if (t && pTglList.indexOf(t) === -1) {
+      pTglList.push(t);
+      pTglList.sort((a,b) => tglKunci(a) < tglKunci(b) ? -1 : 1);
+    }
+    el.value = '';
+    renderTglChips();
+  }
+  function pTglDel(t) { pTglList = pTglList.filter(x => x !== t); renderTglChips(); }
+  function renderTglChips() {
+    const box = document.getElementById('pTglChips'); if (!box) return;
+    if (!pTglList.length) { box.innerHTML = '<span class="muted" style="font-size:11px">Belum ada tanggal dipilih.</span>'; return; }
+    box.innerHTML = pTglList.map(t =>
+      '<span class="pchip filled" style="gap:6px">' + esc(t) +
+      '<span onclick="pTglDel(' + JSON.stringify(t).replace(/"/g,'&quot;') + ')" title="Hapus tanggal" style="cursor:pointer;font-weight:700;color:#c5221f">✕</span></span>').join('');
+  }
   function onDokterChange() { if (pTipe === 'Nama') refreshPrefNilai(true); }
   function pickVal(v) { const h = document.getElementById('pNilai'); if (h) h.value = v; renderPrefNilaiList(); }
   function renderPrefNilaiList() {
@@ -1457,6 +1532,18 @@
         '<option value="Level"' + (pTipe==='Level'?' selected':'') + '>Level (Gold / Silver)</option>' +
         '<option value="Kategori"' + (pTipe==='Kategori'?' selected':'') + '>Kategori (New / Existing)</option></select>' +
       '<label>Nilai *</label><div id="pNilaiWrap">' + prefNilaiSkeleton() + '</div>' +
+      '<label>Berlaku *</label><select id="pBerlakuSel" onchange="onBerlakuChange(this.value)">' +
+        '<option value="Selalu"' + (pBerlaku==='Selalu'?' selected':'') + '>Setiap kali dokter praktik</option>' +
+        '<option value="Tanggal"' + (pBerlaku==='Tanggal'?' selected':'') + '>Tanggal tertentu saja</option></select>' +
+      '<div id="pTglWrap" style="display:' + (pBerlaku==='Tanggal'?'':'none') + '">' +
+        '<label>Tanggal *</label>' +
+        '<div style="display:flex;gap:6px;align-items:center">' +
+          '<input type="date" id="pTglInput" style="flex:1">' +
+          '<button class="mini-btn" type="button" onclick="pTglAdd()" style="flex:none;white-space:nowrap">+ Tambah</button>' +
+        '</div>' +
+        '<div id="pTglChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>' +
+        '<div class="muted" style="font-size:11px;margin-top:4px">Pada tanggal-tanggal ini, preferensi "setiap kali praktik" milik dokter yang sama akan diabaikan — hanya preferensi bertanggal yang dipakai.</div>' +
+      '</div>' +
       '<label>Prioritas *</label><select id="pPrioSel">' +
         '<option value="Utamakan">Utamakan (soft — diprioritaskan)</option>' +
         '<option value="Wajib">Wajib (keras — slot bisa kosong)</option></select>' +
@@ -1464,10 +1551,11 @@
       '<button class="act" id="pBtn" onclick="simpanPref()" style="display:flex;align-items:center;justify-content:center;gap:8px">' + IC_SAVE + '<span id="pBtnTxt">Simpan Preferensi</span></button>' +
       '<button class="act sec" onclick="hidePrefForm()">Batal</button>';
     renderPrefNilaiList(); // isi daftar nilai (ikon SVG) setelah kerangka form terpasang
+    renderTglChips();
   }
   function showPrefTambah() {
     ensurePrefForm(() => {
-      pEditBaris = null; pTipe = 'Nama'; renderPrefForm();
+      pEditBaris = null; pTipe = 'Nama'; pBerlaku = 'Selalu'; pTglList = []; renderPrefForm();
       document.getElementById('pBtnTxt').textContent = 'Simpan Preferensi';
       document.getElementById('pFormWrap').style.display = '';
       document.getElementById('pBtnTambah').style.display = 'none';
@@ -1479,12 +1567,16 @@
   }
   function editPrefRender(r) {
     pEditBaris = r.baris; pTipe = (['Nama','Level','Kategori'].indexOf(r.tipe) !== -1 ? r.tipe : 'Nama');
+    pBerlaku = (r.berlaku === 'Tanggal') ? 'Tanggal' : 'Selalu';
+    pTglList = Array.isArray(r.tanggal) ? r.tanggal.slice() : [];
     renderPrefForm();
     const idx = prefForm.dokter.findIndex(d => d.nama === r.nama);
     document.getElementById('pDokter').value = idx >= 0 ? idx : '';
     document.getElementById('pTipeSel').value = pTipe;
     document.getElementById('pNilai').value = r.nilai; // set nilai lalu render agar tersorot
     renderPrefNilaiList();
+    document.getElementById('pBerlakuSel').value = pBerlaku;
+    onBerlakuChange(pBerlaku);
     document.getElementById('pPrioSel').value = (r.prioritas === 'Wajib' ? 'Wajib' : 'Utamakan');
     document.getElementById('pKet').value = r.keterangan || '';
     document.getElementById('pBtnTxt').textContent = 'Simpan Perubahan';
@@ -1505,15 +1597,31 @@
     return '<span style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;' +
       (wajib ? 'background:rgba(197,34,31,.12);color:#c5221f' : 'background:rgba(26,115,232,.12);color:#1a73e8') + '">' + esc(pr) + '</span>';
   }
+  // Kolom "Berlaku": Selalu, atau daftar chip tanggal + badge bila sudah lewat.
+  function berlakuSel(r) {
+    if (r.berlaku !== 'Tanggal') return '<span class="muted" style="font-size:12px">Setiap praktik</span>';
+    const tgl = r.tanggal || [];
+    const chips = tgl.map(t => '<span class="cs a" style="font-size:10px">' + esc(t) + '</span>').join(' ');
+    const badge = r.lewat ? ' <span class="cs" style="background:#e2e8f0;color:#64748b" title="Semua tanggalnya sudah lewat">lewat</span>' : '';
+    return '<div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center">' + (chips || '<span class="muted">—</span>') + badge + '</div>';
+  }
+  function setSembunyiLewat(v) { pSembunyiLewat = !!v; renderPrefList(); }
   function renderPrefList() {
     const sEl = document.getElementById('pSearch'); const q = (sEl ? sEl.value : '').toLowerCase();
-    const rows = prefRows.filter(r => !q || (r.nama||'').toLowerCase().includes(q) || (r.nilai||'').toLowerCase().includes(q));
-    document.getElementById('pHitung').textContent = rows.length + ' preferensi tersimpan';
+    const rows = prefRows
+      .filter(r => !pSembunyiLewat || !r.lewat)
+      .filter(r => !q || (r.nama||'').toLowerCase().includes(q) || (r.nilai||'').toLowerCase().includes(q));
+    const nLewat = prefRows.filter(r => r.lewat).length;
+    document.getElementById('pHitung').innerHTML = rows.length + ' preferensi tersimpan' +
+      (nLewat ? ' <label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;margin-left:8px;font-weight:400;margin-top:0;margin-bottom:0">' +
+        '<input type="checkbox" style="width:14px;height:14px" ' + (pSembunyiLewat?'checked':'') + ' onchange="setSembunyiLewat(this.checked)">' +
+        'sembunyikan ' + nLewat + ' yang sudah lewat</label>' : '');
     if (!rows.length) { document.getElementById('pList').innerHTML = '<em class="muted">Belum ada preferensi.</em>'; return; }
-    let h = '<div style="overflow-x:auto"><table><tr><th>Dokter</th><th>Preferensi</th><th>Keterangan</th><th class="text-right">Aksi</th></tr>';
+    let h = '<div style="overflow-x:auto"><table><tr><th>Dokter</th><th>Preferensi</th><th>Berlaku</th><th>Keterangan</th><th class="text-right">Aksi</th></tr>';
     rows.forEach(r => {
-      h += '<tr><td>' + esc(r.nama) + '</td>' +
+      h += '<tr' + (r.lewat ? ' style="opacity:.55"' : '') + '><td>' + esc(r.nama) + '</td>' +
         '<td>' + esc(r.tipe) + ': <b>' + esc(r.nilai) + '</b> ' + prioBadge(r.prioritas) + '</td>' +
+        '<td>' + berlakuSel(r) + '</td>' +
         '<td class="muted">' + esc(r.keterangan || '—') + '</td>' +
         '<td class="text-right"><div class="flex gap-2 justify-end">' +
           '<span title="Edit" onclick="editPref(' + r.baris + ')" class="cursor-pointer text-slate-400 hover:text-brand">' + IC_EDIT + '</span>' +
@@ -1527,8 +1635,11 @@
     const nilai = document.getElementById('pNilai').value;
     const p = document.getElementById('pPesan');
     if (di === '' || !nilai) { p.className = 'pesan err'; p.textContent = 'Dokter & nilai preferensi wajib diisi.'; return; }
+    const berlaku = document.getElementById('pBerlakuSel').value === 'Tanggal' ? 'Tanggal' : 'Selalu';
+    if (berlaku === 'Tanggal' && !pTglList.length) { p.className = 'pesan err'; p.textContent = 'Pilih minimal 1 tanggal, atau ubah Berlaku menjadi "Setiap kali dokter praktik".'; return; }
     const dok = prefForm.dokter[di];
-    const data = { id: dok.id, nama: dok.nama, tipe: document.getElementById('pTipeSel').value, nilai: nilai, prioritas: document.getElementById('pPrioSel').value, keterangan: document.getElementById('pKet').value.trim() };
+    const data = { id: dok.id, nama: dok.nama, tipe: document.getElementById('pTipeSel').value, nilai: nilai, prioritas: document.getElementById('pPrioSel').value, keterangan: document.getElementById('pKet').value.trim(),
+      berlaku: berlaku, tanggal: (berlaku === 'Tanggal' ? pTglList.slice() : []) };
     const btn = document.getElementById('pBtn'); btn.disabled = true;
     const cb = res => { btn.disabled = false; if (res.ok) { hidePrefForm(); p.className = 'pesan ok'; p.textContent = res.pesan; muatPref(); } else { p.className = 'pesan err'; p.textContent = res.pesan; } };
     const fail = e => { btn.disabled = false; p.className = 'pesan err'; p.textContent = 'Error: ' + e.message; };
